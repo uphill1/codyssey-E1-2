@@ -7,6 +7,9 @@ class QuizGame:
 
     def __init__(self):
         self.quizzes = get_default_quizzes()  # 퀴즈 목록 (Quiz 객체들의 list)
+        self.best_score = None  # 최고 점수(0~100점). 아직 푼 적 없으면 None
+        self.best_correct = 0   # 최고 점수를 냈을 때 맞힌 문제 수
+        self.best_total = 0     # 최고 점수를 냈을 때 전체 문제 수
 
     def show_menu(self):
         """메인 메뉴를 화면에 출력한다."""
@@ -77,7 +80,30 @@ class QuizGame:
         print()
         print("=" * 40)
         print(f"🏆 결과: {total}문제 중 {correct}문제 정답! ({score}점)")
+        if self.update_best_score(score, correct, total):
+            print("🎉 새로운 최고 점수입니다!")
+        else:
+            print(f"(최고 점수: {self.best_score}점)")
         print("=" * 40)
+
+    def update_best_score(self, score, correct, total):
+        """이번 점수가 최고 점수보다 높으면 갱신하고 True, 아니면 False를 반환한다."""
+        if self.best_score is None or score > self.best_score:
+            self.best_score = score
+            self.best_correct = correct
+            self.best_total = total
+            # TODO: 파일 저장 기능(10단계) 구현 후, 여기서 state.json에 저장한다.
+            return True
+        return False
+
+    def show_score(self):
+        """최고 점수를 출력한다. 아직 푼 기록이 없으면 안내한다."""
+        if self.best_score is None:
+            print("\n⚠️ 아직 퀴즈를 푼 기록이 없습니다. 먼저 퀴즈를 풀어보세요.")
+            return
+
+        print(f"\n🏆 최고 점수: {self.best_score}점 "
+              f"({self.best_total}문제 중 {self.best_correct}문제 정답)")
 
     def add_quiz(self):
         """문제, 선택지 4개, 정답 번호를 입력받아 새 퀴즈를 목록에 추가한다."""
@@ -120,7 +146,7 @@ class QuizGame:
                 elif choice == 3:
                     self.list_quizzes()
                 elif choice == 4:
-                    print("\n🚧 점수 확인은 준비 중입니다.")
+                    self.show_score()
                 else:
                     print("\n👋 게임을 종료합니다.")
                     break
