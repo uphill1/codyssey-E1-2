@@ -1,4 +1,5 @@
 from default_quizzes import get_default_quizzes
+from quiz import Quiz
 
 
 class QuizGame:
@@ -41,6 +42,14 @@ class QuizGame:
 
             return value
 
+    def ask_text(self, prompt):
+        """비어 있지 않은 문자열을 입력받아 반환한다. 빈 값이면 다시 묻는다."""
+        while True:
+            text = input(prompt).strip()
+            if text:
+                return text
+            print("⚠️ 빈 값은 입력할 수 없습니다. 다시 입력하세요.")
+
     def play_quiz(self):
         """저장된 퀴즈를 순서대로 출제하고, 다 풀면 결과를 보여준다."""
         if not self.quizzes:
@@ -70,6 +79,20 @@ class QuizGame:
         print(f"🏆 결과: {total}문제 중 {correct}문제 정답! ({score}점)")
         print("=" * 40)
 
+    def add_quiz(self):
+        """문제, 선택지 4개, 정답 번호를 입력받아 새 퀴즈를 목록에 추가한다."""
+        print("\n📌 새로운 퀴즈를 추가합니다.\n")
+
+        question = self.ask_text("문제를 입력하세요: ")
+        choices = []
+        for i in range(1, 5):
+            choices.append(self.ask_text(f"선택지 {i}: "))
+        answer = self.ask_int("정답 번호 (1-4): ", 1, 4)
+
+        self.quizzes.append(Quiz(question, choices, answer))
+        # TODO: 파일 저장 기능(10단계) 구현 후, 여기서 state.json에 저장한다.
+        print(f"\n✅ 퀴즈가 추가되었습니다! (현재 {len(self.quizzes)}개)")
+
     def run(self):
         """메뉴를 반복해서 보여주고, 선택한 번호에 맞는 기능을 실행한다."""
         try:
@@ -80,7 +103,7 @@ class QuizGame:
                 if choice == 1:
                     self.play_quiz()
                 elif choice == 2:
-                    print("\n🚧 퀴즈 추가는 준비 중입니다.")
+                    self.add_quiz()
                 elif choice == 3:
                     print("\n🚧 퀴즈 목록은 준비 중입니다.")
                 elif choice == 4:
