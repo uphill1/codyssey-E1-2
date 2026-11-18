@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from default_quizzes import get_default_quizzes
 from quiz import Quiz
 
@@ -14,6 +17,9 @@ class QuizGame:
 
     CHOICE_COUNT = 4  # 퀴즈 한 문제의 선택지 개수
     LINE_WIDTH = 40   # 구분선 길이
+
+    # 데이터 파일: 실행 위치와 상관없이 항상 이 파일(quiz_game.py)이 있는 프로젝트 루트의 state.json
+    STATE_FILE = Path(__file__).parent / "state.json"
 
     def __init__(self):
         self.quizzes = get_default_quizzes()  # 퀴즈 목록 (Quiz 객체들의 list)
@@ -123,7 +129,7 @@ class QuizGame:
         answer = self.ask_int(f"정답 번호 (1-{self.CHOICE_COUNT}): ", 1, self.CHOICE_COUNT)
 
         self.quizzes.append(Quiz(question, choices, answer))
-        # TODO: 파일 저장 기능(10단계) 구현 후, 여기서 state.json에 저장한다.
+        self.save_state()
         print(f"\n✅ 퀴즈가 추가되었습니다! (현재 {len(self.quizzes)}개)")
 
     def list_quizzes(self):
@@ -155,15 +161,78 @@ class QuizGame:
             self.best_score = score
             self.best_correct = correct
             self.best_total = total
-            # TODO: 파일 저장 기능(10단계) 구현 후, 여기서 state.json에 저장한다.
+            self.save_state()
             return True
         return False
+
+    # ---------- 파일 저장/불러오기 ----------
+
+    def save_state(self):
+        """현재 퀴즈 목록과 최고 점수를 state.json에 UTF-8로 저장한다."""
+        data = {
+            "quizzes": [quiz.to_dict() for quiz in self.quizzes],
+            "best_score": self.best_score,
+            "best_correct": self.best_correct,
+            "best_total": self.best_total,
+        }
+        try:
+            with open(self.STATE_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except OSError as e:
+            print(f"⚠️ 데이터를 저장하지 못했습니다. ({e})")
+
+    def load_state(self):
+        """state.json에서 데이터를 불러온다. 파일이 없거나 손상됐으면 기본 퀴즈를 쓴다."""
+        try:
+            with open(self.STATE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            quizzes, best_score, best_correct, best_total = self.parse_state(data)
+        except FileNotFoundError:
+            print("📂 저장된 데이터가 없어 기본 퀴즈로 시작합니다.")
+            return
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            print("⚠️ 저장 파일이 손상되어 기본 퀴즈 데이터로 복구합니다.")
+            self.save_state()  # 손상된 파일을 기본 데이터로 덮어써서 초기화
+            return
+        except OSError as e:
+            print(f"⚠️ 저장 파일을 읽지 못해 기본 퀴즈로 시작합니다. ({e})")
+            return
+
+        # 모든 검사를 통과했을 때만 한꺼번에 반영한다.
+        self.quizzes = quizzes
+        self.best_score = best_score
+        self.best_correct = best_correct
+        self.best_total = best_total
+
+        score_text = "기록 없음" if best_score is None else f"{best_score}점"
+        print(f"📂 저장된 데이터를 불러왔습니다. (퀴즈 {len(quizzes)}개, 최고점수 {score_text})")
+
+    def parse_state(self, data):
+        """불러온 dict를 검사해 (퀴즈 목록, 최고 점수, 정답 수, 문제 수)로 바꾼다.
+
+        형식이 잘못되면 KeyError / TypeError / ValueError가 발생한다.
+        """
+        quizzes = [Quiz.from_dict(item) for item in data["quizzes"]]
+        best_score = data["best_score"]
+        best_correct = data.get("best_correct", 0)
+        best_total = data.get("best_total", 0)
+
+        if best_score is not None:
+            if type(best_score) is not int or not 0 <= best_score <= 100:
+                raise ValueError("best_score는 0~100 사이의 정수 또는 null이어야 합니다.")
+        if type(best_correct) is not int or type(best_total) is not int:
+            raise ValueError("best_correct, best_total은 정수여야 합니다.")
+        if not 0 <= best_correct <= best_total:
+            raise ValueError("best_correct는 0 이상, best_total 이하여야 합니다.")
+
+        return quizzes, best_score, best_correct, best_total
 
     # ---------- 실행 ----------
 
     def run(self):
-        """메뉴를 반복해서 보여주고, 선택한 번호에 맞는 기능을 실행한다."""
+        """저장된 데이터를 불러온 뒤, 메뉴를 반복해서 보여주고 선택한 기능을 실행한다."""
         try:
+            self.load_state()
             while True:
                 self.show_menu()
                 choice = self.ask_int("선택: ", self.MENU_PLAY, self.MENU_EXIT)
@@ -177,8 +246,9 @@ class QuizGame:
                 elif choice == self.MENU_SCORE:
                     self.show_score()
                 else:
+                    self.save_state()
                     print("\n👋 게임을 종료합니다.")
                     break
         except (KeyboardInterrupt, EOFError):
-            print("\n\n⚠️ 입력이 중단되어 프로그램을 종료합니다.")
-            # TODO: 파일 저장 기능 구현 후, 여기서 현재 상태를 저장한다.
+            print("\n\n⚠️ 입력이 중단되어 저장 후 프로그램을 종료합니다.")
+            self.save_state()
