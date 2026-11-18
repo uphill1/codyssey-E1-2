@@ -41,6 +41,35 @@ class QuizGame:
 
             return value
 
+    def play_quiz(self):
+        """저장된 퀴즈를 순서대로 출제하고, 다 풀면 결과를 보여준다."""
+        if not self.quizzes:
+            print("\n⚠️ 등록된 퀴즈가 없습니다. 먼저 퀴즈를 추가하세요.")
+            return
+
+        total = len(self.quizzes)
+        correct = 0
+        print(f"\n📝 퀴즈를 시작합니다! (총 {total}문제)")
+
+        for number, quiz in enumerate(self.quizzes, start=1):
+            print()
+            print("-" * 40)
+            quiz.display(number)
+            user_answer = self.ask_int("정답 입력: ", 1, 4)
+
+            if quiz.is_correct(user_answer):
+                print("✅ 정답입니다!")
+                correct += 1
+            else:
+                answer_text = quiz.choices[quiz.answer - 1]
+                print(f"❌ 오답입니다. 정답은 {quiz.answer}번 ({answer_text}) 입니다.")
+
+        score = round(correct / total * 100)
+        print()
+        print("=" * 40)
+        print(f"🏆 결과: {total}문제 중 {correct}문제 정답! ({score}점)")
+        print("=" * 40)
+
     def run(self):
         """메뉴를 반복해서 보여주고, 선택한 번호에 맞는 기능을 실행한다."""
         try:
@@ -49,7 +78,7 @@ class QuizGame:
                 choice = self.ask_int("선택: ", 1, 5)
 
                 if choice == 1:
-                    print("\n🚧 퀴즈 풀기는 준비 중입니다.")
+                    self.play_quiz()
                 elif choice == 2:
                     print("\n🚧 퀴즈 추가는 준비 중입니다.")
                 elif choice == 3:
