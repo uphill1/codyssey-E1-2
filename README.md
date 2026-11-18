@@ -142,6 +142,20 @@ codyssey-E1-2/
 | JSON 문법 오류, 키 누락, 잘못된 값 (예: 선택지가 4개가 아님, 정답이 1~4 범위 밖, 점수가 0~100 범위 밖) | 안내 메시지를 보여주고 기본 퀴즈 데이터로 복구(초기화)합니다. |
 | 읽기/쓰기 권한 오류 | 안내 메시지를 보여주고 게임은 계속 진행합니다. |
 
+## 개발 환경
+
+- macOS, VSCode
+- Python 3.14.8 (3.10 이상 필요)
+- Git 2.50.1
+
+![개발 환경](docs/screenshots/dev_env.png)
+
 ## Git 실습 기록
 
+- 기능 단위로 커밋했습니다. (메뉴 → Quiz 클래스 → 기본 데이터 → 퀴즈 풀기 → 추가 → 목록 → 점수 → 구조 정리 → 파일 저장 → README)
+- 퀴즈 풀기 기능은 `feature/play-quiz` 브랜치에서 작업한 뒤, 병합 기록이 남도록 `git merge --no-ff`로 main에 병합했습니다.
 - clone한 저장소(`codyssey-E1-2-clone`)에서 이 섹션을 추가해 commit → push 하고, 원래 작업 폴더에서 `git pull`로 변경사항을 가져와 반영을 확인했습니다.
+
+**`git log --oneline --graph`**
+
+![git log](docs/screenshots/git_log.png)
