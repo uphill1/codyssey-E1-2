@@ -1,5 +1,11 @@
+from default_quizzes import get_default_quizzes
+
+
 class QuizGame:
     """퀴즈 게임 전체(메뉴, 입력, 진행)를 관리하는 클래스."""
+
+    def __init__(self):
+        self.quizzes = get_default_quizzes()  # 퀴즈 목록 (Quiz 객체들의 list)
 
     def show_menu(self):
         """메인 메뉴를 화면에 출력한다."""
