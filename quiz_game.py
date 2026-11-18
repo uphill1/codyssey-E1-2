@@ -93,6 +93,19 @@ class QuizGame:
         # TODO: 파일 저장 기능(10단계) 구현 후, 여기서 state.json에 저장한다.
         print(f"\n✅ 퀴즈가 추가되었습니다! (현재 {len(self.quizzes)}개)")
 
+    def list_quizzes(self):
+        """등록된 퀴즈의 문제 목록을 번호와 함께 출력한다."""
+        if not self.quizzes:
+            print("\n⚠️ 등록된 퀴즈가 없습니다. 먼저 퀴즈를 추가하세요.")
+            return
+
+        print(f"\n📋 등록된 퀴즈 목록 (총 {len(self.quizzes)}개)")
+        print()
+        print("-" * 40)
+        for number, quiz in enumerate(self.quizzes, start=1):
+            print(f"[{number}] {quiz.question}")
+        print("-" * 40)
+
     def run(self):
         """메뉴를 반복해서 보여주고, 선택한 번호에 맞는 기능을 실행한다."""
         try:
@@ -105,7 +118,7 @@ class QuizGame:
                 elif choice == 2:
                     self.add_quiz()
                 elif choice == 3:
-                    print("\n🚧 퀴즈 목록은 준비 중입니다.")
+                    self.list_quizzes()
                 elif choice == 4:
                     print("\n🚧 점수 확인은 준비 중입니다.")
                 else:
