@@ -17,6 +17,7 @@ class QuizGame:
     MENU_EXIT = 5
 
     CHOICE_COUNT = 4  # 퀴즈 한 문제의 선택지 개수
+    HINT_PENALTY = 10  # 힌트를 사용한 문제당 차감 점수
     LINE_WIDTH = 40   # 구분선 길이
 
     # 데이터 파일: 실행 위치와 상관없이 항상 이 파일(quiz_game.py)이 있는 프로젝트 루트의 state.json
@@ -98,13 +99,20 @@ class QuizGame:
         random.shuffle(round_quizzes)
         round_quizzes = round_quizzes[:total]
         correct = 0
+        hints_used = 0
         print(f"\n📝 퀴즈를 시작합니다! (총 {total}문제)")
 
         for number, quiz in enumerate(round_quizzes, start=1):
             print()
             self.print_line("-")
             quiz.display(number)
-            user_answer = self.ask_int("정답 입력: ", 1, self.CHOICE_COUNT)
+            user_answer = self.ask_int(
+                f"정답 입력 (0: 힌트, -{self.HINT_PENALTY}점): ", 0, self.CHOICE_COUNT
+            )
+            if user_answer == 0:
+                print(f"💡 힌트: {quiz.get_hint()}")
+                hints_used += 1
+                user_answer = self.ask_int("정답 입력: ", 1, self.CHOICE_COUNT)
 
             if quiz.is_correct(user_answer):
                 print("✅ 정답입니다!")
@@ -113,9 +121,13 @@ class QuizGame:
                 answer_text = quiz.choices[quiz.answer - 1]
                 print(f"❌ 오답입니다. 정답은 {quiz.answer}번 ({answer_text}) 입니다.")
 
-        score = round(correct / total * 100)
+        base_score = round(correct / total * 100)
+        penalty = min(base_score, hints_used * self.HINT_PENALTY)
+        score = base_score - penalty
         print()
         self.print_line("=")
+        if hints_used:
+            print(f"💡 힌트 {hints_used}회 사용 · {penalty}점 차감")
         print(f"🏆 결과: {total}문제 중 {correct}문제 정답! ({score}점)")
         if self.update_best_score(score, correct, total):
             print("🎉 새로운 최고 점수입니다!")
@@ -124,7 +136,7 @@ class QuizGame:
         self.print_line("=")
 
     def add_quiz(self):
-        """문제, 선택지 4개, 정답 번호를 입력받아 새 퀴즈를 목록에 추가한다."""
+        """문제, 선택지, 정답, 선택 사항인 힌트를 입력받아 퀴즈를 추가한다."""
         print("\n📌 새로운 퀴즈를 추가합니다.\n")
 
         question = self.ask_text("문제를 입력하세요: ")
@@ -132,8 +144,9 @@ class QuizGame:
         for i in range(1, self.CHOICE_COUNT + 1):
             choices.append(self.ask_text(f"선택지 {i}: "))
         answer = self.ask_int(f"정답 번호 (1-{self.CHOICE_COUNT}): ", 1, self.CHOICE_COUNT)
+        hint = input("힌트 (생략하려면 Enter): ").strip()
 
-        self.quizzes.append(Quiz(question, choices, answer))
+        self.quizzes.append(Quiz(question, choices, answer, hint))
         self.save_state()
         print(f"\n✅ 퀴즈가 추가되었습니다! (현재 {len(self.quizzes)}개)")
 
