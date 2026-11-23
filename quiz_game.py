@@ -299,7 +299,10 @@ class QuizGame:
 
         형식이 잘못되면 KeyError / TypeError / ValueError가 발생한다.
         """
-        quizzes = [Quiz.from_dict(item) for item in data["quizzes"]]
+        raw_quizzes = data["quizzes"]
+        if not isinstance(raw_quizzes, list):
+            raise ValueError("quizzes는 리스트여야 합니다.")
+        quizzes = [Quiz.from_dict(item) for item in raw_quizzes]
         best_score = data["best_score"]
         best_correct = data.get("best_correct", 0)
         best_total = data.get("best_total", 0)
