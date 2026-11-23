@@ -1,6 +1,7 @@
 import json
 import os
 import random
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -18,6 +19,7 @@ class QuizGame:
     MENU_SCORE = 4
     MENU_EXIT = 5
     MENU_DELETE = 6
+    MENU_HISTORY = 7
 
     CHOICE_COUNT = 4  # 퀴즈 한 문제의 선택지 개수
     HINT_PENALTY = 10  # 힌트를 사용한 문제당 차감 점수
@@ -31,6 +33,7 @@ class QuizGame:
         self.best_score = None  # 최고 점수(0~100점). 아직 푼 적 없으면 None
         self.best_correct = 0   # 최고 점수를 냈을 때 맞힌 문제 수
         self.best_total = 0     # 최고 점수를 냈을 때 전체 문제 수
+        self.score_history = []  # 완료한 게임 기록 (오래된 순서부터 저장)
 
     # ---------- 입력 처리 ----------
 
@@ -88,6 +91,7 @@ class QuizGame:
         print(f"{self.MENU_SCORE}. 점수 확인")
         print(f"{self.MENU_EXIT}. 종료")
         print(f"{self.MENU_DELETE}. 퀴즈 삭제")
+        print(f"{self.MENU_HISTORY}. 점수 기록")
         self.print_line("=")
 
     # ---------- 메뉴 기능 ----------
@@ -128,12 +132,13 @@ class QuizGame:
         base_score = round(correct / total * 100)
         penalty = min(base_score, hints_used * self.HINT_PENALTY)
         score = base_score - penalty
+        is_new_best = self.record_result(score, correct, total)
         print()
         self.print_line("=")
         if hints_used:
             print(f"💡 힌트 {hints_used}회 사용 · {penalty}점 차감")
         print(f"🏆 결과: {total}문제 중 {correct}문제 정답! ({score}점)")
-        if self.update_best_score(score, correct, total):
+        if is_new_best:
             print("🎉 새로운 최고 점수입니다!")
         else:
             print(f"(최고 점수: {self.best_score}점)")
@@ -201,7 +206,31 @@ class QuizGame:
         print(f"\n🏆 최고 점수: {self.best_score}점 "
               f"({self.best_total}문제 중 {self.best_correct}문제 정답)")
 
+    def show_history(self):
+        """완료한 게임의 날짜, 시간, 문제 수, 점수를 최근 순서로 보여준다."""
+        if not self.score_history:
+            print("\n⚠️ 아직 기록된 게임이 없습니다. 먼저 퀴즈를 풀어보세요.")
+            return
+
+        print(f"\n📜 점수 기록 (총 {len(self.score_history)}판 · 최근 순)")
+        self.print_line("-")
+        for record in reversed(self.score_history):
+            played_at = record["played_at"].replace("T", " ", 1)
+            print(f"{played_at} | {record['total']}문제 | {record['score']}점")
+        self.print_line("-")
+
     # ---------- 점수 로직 ----------
+
+    def record_result(self, score, correct, total):
+        """완료한 게임을 기록하고 최고 점수와 함께 저장한다."""
+        self.score_history.append({
+            "played_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "total": total,
+            "score": score,
+        })
+        is_new_best = self.update_best_score(score, correct, total)
+        self.save_state()
+        return is_new_best
 
     def update_best_score(self, score, correct, total):
         """이번 점수가 최고 점수보다 높으면 갱신하고 True, 아니면 False를 반환한다."""
@@ -209,7 +238,6 @@ class QuizGame:
             self.best_score = score
             self.best_correct = correct
             self.best_total = total
-            self.save_state()
             return True
         return False
 
@@ -222,6 +250,7 @@ class QuizGame:
             "best_score": self.best_score,
             "best_correct": self.best_correct,
             "best_total": self.best_total,
+            "score_history": self.score_history,
         }
         try:
             if self.STATE_FILE.exists() and not os.access(self.STATE_FILE, os.W_OK):
@@ -243,7 +272,7 @@ class QuizGame:
         try:
             with open(self.STATE_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            quizzes, best_score, best_correct, best_total = self.parse_state(data)
+            quizzes, best_score, best_correct, best_total, score_history = self.parse_state(data)
         except FileNotFoundError:
             print("📂 저장된 데이터가 없어 기본 퀴즈로 시작합니다.")
             return
@@ -260,12 +289,13 @@ class QuizGame:
         self.best_score = best_score
         self.best_correct = best_correct
         self.best_total = best_total
+        self.score_history = score_history
 
         score_text = "기록 없음" if best_score is None else f"{best_score}점"
         print(f"📂 저장된 데이터를 불러왔습니다. (퀴즈 {len(quizzes)}개, 최고점수 {score_text})")
 
     def parse_state(self, data):
-        """불러온 dict를 검사해 (퀴즈 목록, 최고 점수, 정답 수, 문제 수)로 바꾼다.
+        """불러온 dict를 검사해 퀴즈 목록, 최고 점수 정보, 점수 기록으로 바꾼다.
 
         형식이 잘못되면 KeyError / TypeError / ValueError가 발생한다.
         """
@@ -282,7 +312,22 @@ class QuizGame:
         if not 0 <= best_correct <= best_total:
             raise ValueError("best_correct는 0 이상, best_total 이하여야 합니다.")
 
-        return quizzes, best_score, best_correct, best_total
+        score_history = data.get("score_history", [])
+        self.validate_score_history(score_history)
+        return quizzes, best_score, best_correct, best_total, score_history
+
+    def validate_score_history(self, history):
+        """각 게임 기록의 날짜/시간, 문제 수, 점수를 검사한다."""
+        if type(history) is not list:
+            raise ValueError("score_history는 리스트여야 합니다.")
+        for record in history:
+            played_at = datetime.fromisoformat(record["played_at"])
+            if played_at.tzinfo is None:
+                raise ValueError("게임 기록의 시간에는 시간대 정보가 있어야 합니다.")
+            if type(record["total"]) is not int or record["total"] < 1:
+                raise ValueError("게임 기록의 문제 수는 1 이상의 정수여야 합니다.")
+            if type(record["score"]) is not int or not 0 <= record["score"] <= 100:
+                raise ValueError("게임 기록의 점수는 0~100 사이의 정수여야 합니다.")
 
     # ---------- 실행 ----------
 
@@ -292,7 +337,7 @@ class QuizGame:
             self.load_state()
             while True:
                 self.show_menu()
-                choice = self.ask_int("선택: ", self.MENU_PLAY, self.MENU_DELETE)
+                choice = self.ask_int("선택: ", self.MENU_PLAY, self.MENU_HISTORY)
 
                 if choice == self.MENU_PLAY:
                     self.play_quiz()
@@ -304,6 +349,8 @@ class QuizGame:
                     self.show_score()
                 elif choice == self.MENU_DELETE:
                     self.delete_quiz()
+                elif choice == self.MENU_HISTORY:
+                    self.show_history()
                 else:
                     self.save_state()
                     print("\n👋 게임을 종료합니다.")
