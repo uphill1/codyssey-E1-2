@@ -1,4 +1,5 @@
 import json
+import random
 from pathlib import Path
 
 from default_quizzes import get_default_quizzes
@@ -87,15 +88,17 @@ class QuizGame:
     # ---------- 메뉴 기능 ----------
 
     def play_quiz(self):
-        """저장된 퀴즈를 순서대로 출제하고, 다 풀면 결과를 보여준다."""
+        """저장된 퀴즈를 무작위 순서로 출제하고, 다 풀면 결과를 보여준다."""
         if not self.has_quizzes():
             return
 
-        total = len(self.quizzes)
+        round_quizzes = self.quizzes.copy()
+        random.shuffle(round_quizzes)
+        total = len(round_quizzes)
         correct = 0
         print(f"\n📝 퀴즈를 시작합니다! (총 {total}문제)")
 
-        for number, quiz in enumerate(self.quizzes, start=1):
+        for number, quiz in enumerate(round_quizzes, start=1):
             print()
             self.print_line("-")
             quiz.display(number)
