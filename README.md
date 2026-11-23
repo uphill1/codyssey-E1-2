@@ -69,6 +69,30 @@ python3 main.py
 
 ![재시작](docs/screenshots/restart.png)
 
+### 보너스 기능 실행 화면
+
+테스트 입력으로 게임을 실행한 결과를 터미널 형태로 표시했습니다.
+
+**랜덤 출제**
+
+![같은 문제 수로 시작한 두 판의 첫 문제가 서로 다른 화면](docs/screenshots/bonus_random.png)
+
+**문제 수 선택**
+
+![두 문제를 선택하고 두 문제만 푼 결과](docs/screenshots/bonus_count.png)
+
+**힌트와 점수 차감**
+
+![힌트를 한 번 사용해 10점이 차감되고 90점을 받은 화면](docs/screenshots/bonus_hint.png)
+
+**퀴즈 삭제**
+
+![목록에서 테스트용 퀴즈를 선택해 삭제한 화면](docs/screenshots/bonus_delete.png)
+
+**점수 기록**
+
+![재실행 후 저장된 두 판의 기록을 최근 순으로 확인한 화면](docs/screenshots/bonus_history.png)
+
 ## 파일 구조
 
 ```
