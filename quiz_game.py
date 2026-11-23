@@ -88,13 +88,15 @@ class QuizGame:
     # ---------- 메뉴 기능 ----------
 
     def play_quiz(self):
-        """저장된 퀴즈를 무작위 순서로 출제하고, 다 풀면 결과를 보여준다."""
+        """선택한 수만큼 퀴즈를 무작위로 출제하고, 다 풀면 결과를 보여준다."""
         if not self.has_quizzes():
             return
 
+        available = len(self.quizzes)
+        total = self.ask_int(f"풀 문제 수 (1-{available}): ", 1, available)
         round_quizzes = self.quizzes.copy()
         random.shuffle(round_quizzes)
-        total = len(round_quizzes)
+        round_quizzes = round_quizzes[:total]
         correct = 0
         print(f"\n📝 퀴즈를 시작합니다! (총 {total}문제)")
 
