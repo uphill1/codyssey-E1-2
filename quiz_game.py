@@ -1,6 +1,8 @@
 import json
+import os
 import random
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from default_quizzes import get_default_quizzes
 from quiz import Quiz
@@ -15,6 +17,7 @@ class QuizGame:
     MENU_LIST = 3
     MENU_SCORE = 4
     MENU_EXIT = 5
+    MENU_DELETE = 6
 
     CHOICE_COUNT = 4  # 퀴즈 한 문제의 선택지 개수
     HINT_PENALTY = 10  # 힌트를 사용한 문제당 차감 점수
@@ -84,6 +87,7 @@ class QuizGame:
         print(f"{self.MENU_LIST}. 퀴즈 목록")
         print(f"{self.MENU_SCORE}. 점수 확인")
         print(f"{self.MENU_EXIT}. 종료")
+        print(f"{self.MENU_DELETE}. 퀴즈 삭제")
         self.print_line("=")
 
     # ---------- 메뉴 기능 ----------
@@ -151,9 +155,9 @@ class QuizGame:
         print(f"\n✅ 퀴즈가 추가되었습니다! (현재 {len(self.quizzes)}개)")
 
     def list_quizzes(self):
-        """등록된 퀴즈의 문제 목록을 번호와 함께 출력한다."""
+        """문제 목록을 번호와 함께 출력하고, 목록이 비어 있으면 False를 반환한다."""
         if not self.has_quizzes():
-            return
+            return False
 
         print(f"\n📋 등록된 퀴즈 목록 (총 {len(self.quizzes)}개)")
         print()
@@ -161,6 +165,32 @@ class QuizGame:
         for number, quiz in enumerate(self.quizzes, start=1):
             print(f"[{number}] {quiz.question}")
         self.print_line("-")
+        return True
+
+    def delete_quiz(self):
+        """목록에서 고른 퀴즈를 확인 후 삭제하고 저장한다."""
+        if not self.list_quizzes():
+            return
+
+        total = len(self.quizzes)
+        number = self.ask_int(f"삭제할 문제 번호 (1-{total}, 0: 취소): ", 0, total)
+        if number == 0:
+            print("\n삭제를 취소했습니다.")
+            return
+
+        index = number - 1
+        quiz = self.quizzes[index]
+        print(f"\n삭제할 문제: {quiz.question}")
+        if self.ask_int("이 문제를 삭제할까요? (1: 삭제, 0: 취소): ", 0, 1) == 0:
+            print("\n삭제를 취소했습니다.")
+            return
+
+        self.quizzes.pop(index)
+        if not self.save_state():
+            self.quizzes.insert(index, quiz)
+            print("\n저장에 실패해 삭제를 취소했습니다.")
+            return
+        print(f"\n✅ 퀴즈를 삭제했습니다. (현재 {len(self.quizzes)}개)")
 
     def show_score(self):
         """최고 점수를 출력한다. 아직 푼 기록이 없으면 안내한다."""
@@ -186,7 +216,7 @@ class QuizGame:
     # ---------- 파일 저장/불러오기 ----------
 
     def save_state(self):
-        """현재 퀴즈 목록과 최고 점수를 state.json에 UTF-8로 저장한다."""
+        """현재 상태를 UTF-8로 저장하고 성공 여부를 반환한다."""
         data = {
             "quizzes": [quiz.to_dict() for quiz in self.quizzes],
             "best_score": self.best_score,
@@ -194,10 +224,19 @@ class QuizGame:
             "best_total": self.best_total,
         }
         try:
-            with open(self.STATE_FILE, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+            if self.STATE_FILE.exists() and not os.access(self.STATE_FILE, os.W_OK):
+                raise PermissionError(f"쓰기 권한이 없습니다: {self.STATE_FILE}")
+
+            # 기록 중 오류가 나도 기존 저장 파일이 손상되지 않도록 한다.
+            with TemporaryDirectory(dir=self.STATE_FILE.parent) as directory:
+                pending_file = Path(directory) / self.STATE_FILE.name
+                with pending_file.open("w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                pending_file.replace(self.STATE_FILE)
         except OSError as e:
             print(f"⚠️ 데이터를 저장하지 못했습니다. ({e})")
+            return False
+        return True
 
     def load_state(self):
         """state.json에서 데이터를 불러온다. 파일이 없거나 손상됐으면 기본 퀴즈를 쓴다."""
@@ -253,7 +292,7 @@ class QuizGame:
             self.load_state()
             while True:
                 self.show_menu()
-                choice = self.ask_int("선택: ", self.MENU_PLAY, self.MENU_EXIT)
+                choice = self.ask_int("선택: ", self.MENU_PLAY, self.MENU_DELETE)
 
                 if choice == self.MENU_PLAY:
                     self.play_quiz()
@@ -263,6 +302,8 @@ class QuizGame:
                     self.list_quizzes()
                 elif choice == self.MENU_SCORE:
                     self.show_score()
+                elif choice == self.MENU_DELETE:
+                    self.delete_quiz()
                 else:
                     self.save_state()
                     print("\n👋 게임을 종료합니다.")
